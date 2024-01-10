@@ -1,0 +1,65 @@
+﻿@page "/coffeelist"
+@inject CoffeeServices CoffeeServices
+@inject OrderItemServices OrderItemServices
+
+@inject NavigationManager NavigationManager
+@inject ISnackbar bar
+
+<MudTable Items="@Elements"
+          Dense=true 
+          Hover=true
+          Bordered=true
+          Striped=true>
+
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Coffee List</MudText>
+        <MudSpacer />
+    </ToolBarContent>
+
+
+    <HeaderContent>
+        <MudTh>Coffee Type</MudTh>
+        <MudTh>Price</MudTh>
+        <MudTh>Action</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="CoffeeType">@context.CoffeeType</MudTd>
+        <MudTd DataLabel="Price">Rs.@context.Price</MudTd>
+        <MudTd DataLabel="Action">
+            @if (isUserAdmin)
+            {
+                <MudIconButton Color="Color.Secondary" Icon="@Icons.Material.Filled.Edit" OnClick="@(()  => NavigationManager.NavigateTo($"/coffeelistedit/{context.Id}"))" aria-label="Edit"> </MudIconButton>
+            }
+            <MudIconButton Color="Color.Success" Icon="@Icons.Material.Filled.Add" OnClick="@(() => { AddItemInCart(context.Id, context.Price,context.CoffeeType); bar.Add("Added to Cart!", Severity.Success);})" aria-label="Add"></MudIconButton>
+
+         </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+
+    private bool isUserAdmin { get; set; } = false;
+
+    private IEnumerable<Coffee> Elements { get; set; } = new List<Coffee>();
+
+    protected override void OnInitialized()
+    {
+        Elements = CoffeeServices.GetCoffeeListFromJsonFile();
+        isUserAdmin = _globalState.CurrentUser.Role.ToString() == "Administrator";
+        _globalState.AppBarTitle = "Items";
+    }
+    //takes the id of the coffee and price of the coffee
+    private void AddItemInCart(Guid addInItemID, double itemPrice,string name)
+    {
+        //calls the addItem in orderItemList
+       OrderItemServices.AddItemInOrderList(_globalState.OrderItems, addInItemID, "Coffee", itemPrice, name);
+    }
+
+}

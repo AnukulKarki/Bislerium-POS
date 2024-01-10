@@ -1,0 +1,180 @@
+﻿@page "/bill/{phone}"
+@using System.Diagnostics;
+@inject CoffeeServices CoffeeServices
+@inject OrderItemServices OrderItemServices
+@inject AddInsServices AddInsServices
+@inject NavigationManager NavigationManager
+@inject CustomerService CustomerService
+@inject OrderService OrderService
+@inject ISnackbar bar
+
+@if (_message != "")
+{
+    <MudAlert Severity="Severity.Error">@_message</MudAlert>
+}
+
+<MudTable Items="@Elements"
+          Dense=true
+          Hover=true
+          Bordered=true
+          Striped=true>
+
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Cart</MudText>
+
+
+    </ToolBarContent>
+
+
+    <HeaderContent>
+        <MudTh>Item Name</MudTh>
+        <MudTh>Item Type</MudTh>
+        <MudTh>Price</MudTh>
+        <MudTh>Quantity</MudTh>
+        <MudTh>Total</MudTh>
+        <MudTh>Action</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Item Name">@context.Name</MudTd>
+        <MudTd DataLabel="Item Type">@context.ItemType</MudTd>
+        <MudTd DataLabel="Price">Rs.@context.Price</MudTd>
+
+        <MudTd DataLabel="Quantity">
+            <span>
+                @context.Quantity
+            </span>
+        </MudTd>
+
+        <MudTd DataLabel="Price">Rs.@context.TotalPrice</MudTd>
+        <MudTd DataLabel="Action">
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+<MudSpacer />
+<MudText Typo="Typo.subtitle1">Total Price: <b>Rs.@_totalAmount</b></MudText>
+<MudText Typo="Typo.subtitle1">Discount: <b>Rs.@_discount</b></MudText>
+@if(_redeemPrice != 0)
+{
+
+    <MudText Typo="Typo.subtitle1">Redeemed Amount: <b>Rs.@_redeemPrice</b></MudText>
+}
+<MudText Typo="Typo.subtitle1">Final Price: <b>Rs.@_finalPrice</b></MudText>
+
+<div class="mt-5">
+    <MudButton Variant="Variant.Filled" OnClick="@(() =>
+    {
+        customerExistCheck(); bar.Add("Done!", Severity.Success);
+    })" Color="Color.Primary">Checkout</MudButton>
+</div>
+
+
+
+@code {
+
+    [Parameter]
+    public string phone { get; set; }
+    [CascadingParameter]
+    private GlobalState _globalState { set; get; }
+
+    private string _message { set; get; } = "";
+
+
+    private double _totalAmount { set; get; } = 0;
+    private double _discount { set; get; } = 0;
+    private double _finalPrice { set; get; }
+    private double _redeemPrice { set; get; } = 0;
+
+
+    private IEnumerable<OrderItem> Elements = new List<OrderItem>();
+
+    private Coffee _coffee { set; get; }
+    //calculate the total amount of the cart
+    private double calculateTotalAmount()
+    {
+        double totalAmount = 0;
+        //calculate the total amount from the list OrderList data.
+        foreach (var item in Elements)
+        {
+            totalAmount += item.TotalPrice;
+        }
+        return totalAmount;
+    }
+
+
+    protected override void OnInitialized()
+    {
+
+        Elements = _globalState.OrderItems;
+        _globalState.AppBarTitle = "Cart";
+        _totalAmount = calculateTotalAmount();
+
+        List<Order> orderList = OrderService.GetOrdersFromJsonFile();
+        CustomerService.isMemberUpdate(phone, orderList);//edit if JSON to check if the customer is member or not
+
+        Customer customer = CustomerService.getCustomerFromPhone(phone);
+        if (customer.member)//true or false
+        {
+            _discount = 0.1 * _totalAmount;
+        }
+        if (customer.OrderCount >= 10)
+        {
+            List<OrderItem> list = _globalState.OrderItems;
+            foreach (OrderItem orderItemList in list)
+            {
+                if (orderItemList.ItemType == "Coffee")
+                {
+                    _redeemPrice = orderItemList.TotalPrice / orderItemList.Quantity;
+
+                    break;
+                }
+            }
+        }
+
+        _finalPrice = _totalAmount - _discount - _redeemPrice;
+
+    }
+
+    private void customerExistCheck()
+    {
+        Customer customer = CustomerService.getCustomerFromPhone(phone);
+        if (customer == null)
+        {
+            NavigationManager.NavigateTo("/register");
+        } 
+        else
+        {
+
+            CustomerService.editCustomerOrderCount(phone);
+            Order order = new()
+                {
+                    CustomerID = customer.CustomerID,
+                    CustomerName = customer.Name,
+                    CustomerPhone = phone,
+                    EmployeeRole = _globalState.CurrentUser.Role.ToString(),
+                    OrderItems = _globalState.OrderItems,
+                    OrderTotalAmount = _finalPrice,
+
+                };
+            OrderService.PlaceOrder(order);
+
+            foreach (OrderItem orderitem in _globalState.OrderItems)
+            {
+                OrderItemServices.SaveOrderList(orderitem);
+            }
+            _globalState.OrderItems.Clear();
+            if(customer.OrderCount >= 10)
+            {
+                CustomerService.resetOrderCount(phone);
+            }
+            NavigationManager.NavigateTo("/coffeelist");
+
+        }
+    }
+
+
+}

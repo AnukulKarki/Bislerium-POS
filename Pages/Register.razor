@@ -1,0 +1,75 @@
+﻿@page "/register"
+
+@inject NavigationManager NavigationManager
+@inject CustomerService CustomerService
+
+<h1>Register</h1>
+@if(_message != "")
+{
+    <h4>@_message</h4>
+}
+
+<MudButton OnClick="goBack" >Back</MudButton>
+
+
+
+    <div class="container-fluid mt-5">
+        <div class="row">
+            <div class="col-6 d-flex flex-column gap-y-3">
+                <MudTextField @bind-Value="username" Label="Username" Variant="Variant.Outlined" ></MudTextField>
+                <MudTextField @bind-Value="phoneNumber" Label="Phone" Variant="Variant.Outlined"></MudTextField>
+                <MudTextField @bind-Value="address" Label="Address" Variant="Variant.Outlined"></MudTextField>
+                <div>
+                <MudButton Variant="Variant.Filled" OnClick="createCustomer" DisableElevation="true" Color="Color.Primary" Class="mt-5">
+                        Register
+                    </MudButton>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@code {
+
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+    private string phoneNumber { get; set; }
+    private string username { get; set; }
+    private string address { get; set; }
+
+
+    private string _message { get; set; } = "";
+    private bool _isSuccess { get; set; } = false;
+
+    private void createCustomer()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(phoneNumber))
+            {
+                _message = "Please Provide Phone Number";
+                return;
+            }
+            else if (string.IsNullOrEmpty(username))
+            {
+                _message = "Please Provide Username";
+                return;
+            }
+            else if(string.IsNullOrEmpty(address)){
+                _message = "Please Provide Address";
+                return;
+            }
+            CustomerService.addCustomerInJson(username, phoneNumber, address);
+            _message = "User Created Successfully";
+            NavigationManager.NavigateTo($"/bill/{phoneNumber}");
+        }catch(Exception e)
+        {
+            _message = e.Message;
+        }
+    }
+
+
+    private void goBack()
+    {
+        NavigationManager.NavigateTo("/cart");
+    }
+}

@@ -1,0 +1,57 @@
+@page "/login"
+@layout EmptyLayout
+@inject UserServices UserServices
+@inject NavigationManager NavManager
+
+@using System.Diagnostics;
+
+<MudGrid>
+    <MudItem xs="12" sm="7">
+        <MudCard Style="margin: 15% auto auto 65%">
+            <h4 style="margin-left:30%">Bislerium</h4>
+            <MudCardContent>
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+
+                    <MudAlert Severity="Severity.Error">@_errorMessage</MudAlert>
+                }
+                <MudTextField Label="Password" HelperText="Enter a valid password" Class="mt-3"
+                @bind-Value="_password" InputType="InputType.Password" />
+
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" OnClick="OnLogin">Login</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+
+</MudGrid>
+
+
+@code {
+    string _password;
+    string _errorMessage;
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+
+
+    private void OnLogin()
+    {
+        try
+        {
+            if (String.IsNullOrEmpty(_password))
+            {
+                _errorMessage = "Password Required";
+                return;
+            }
+            _globalState.CurrentUser = UserServices.loginCheck(_password);
+            NavManager.NavigateTo("/");
+             
+
+        }catch(Exception e)
+        {
+            _errorMessage = e.Message;
+        }
+    }
+
+}

@@ -1,0 +1,143 @@
+﻿@page "/"
+@inject NavigationManager NavManager
+@using Bislerium.Data.Models
+@using System.Diagnostics;
+@inject CoffeeServices CoffeeServices
+@inject OrderItemServices OrderItemServices
+@inject AddInsServices AddInsServices
+@inject NavigationManager NavigationManager
+@inject CustomerService CustomerService
+@inject OrderService OrderService
+@inject ReportService ReportService
+@inject ISnackbar bar
+@using QuestPDF.Fluent
+
+
+@if (_message != "")
+{
+    <MudAlert Severity="Severity.Error">@_message</MudAlert>
+}
+
+<MudTable Items="@Elements"
+          Dense=true
+          Hover=true
+          Bordered=true
+          Striped=true>
+
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Order History</MudText>
+
+
+    </ToolBarContent>
+
+
+    <HeaderContent>
+        
+        <MudTh>Coffee Name</MudTh>
+        <MudTh>Coffee Type</MudTh>
+        <MudTh>Quantity</MudTh>
+        <MudTh>Line Total</MudTh>
+        <MudTh>Customer Name</MudTh>
+        <MudTh>Worker</MudTh>
+        <MudTh>Order Date</MudTh>
+    </HeaderContent>
+
+   
+ 
+        <RowTemplate>
+        
+            <MudTd DataLabel="Item Type">@context.Name</MudTd>
+            <MudTd DataLabel="Item Name">@context.ItemType</MudTd>
+
+        <MudTd DataLabel="Price">Psc: @context.Quantity </MudTd>
+        <MudTd DataLabel="Price">Rs.@context.TotalPrice </MudTd>
+        @foreach (Order order in Data)
+        {
+            @foreach (OrderItem orderItemDetails in order.OrderItems)
+            {
+                @if (orderItemDetails.OrderItemID == @context.OrderItemID)
+                {
+
+                    <MudTd DataLabel="Customer">@order.CustomerName</MudTd>
+                    <MudTd DataLabel="Customer">@order.EmployeeRole</MudTd>
+                    <MudTd DataLabel="Customer">@order.OrderDateTime</MudTd>
+                    return;
+                }
+            }
+        }
+        
+        </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+<MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="day" Class="ml-auto">Download Day</MudButton>
+<MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="month" Class="ml-auto">Download Month</MudButton>
+
+
+
+
+
+@code{
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+
+    private string phone { set; get; }
+    private string _message { set; get; } = "";
+
+
+    private double _totalAmount { set; get; } = 0;
+    private string timeFrame { get; set; } = "";
+
+
+    private IEnumerable<OrderItem> Elements = new List<OrderItem>();
+    private List<Order> Data = new();
+    private List<OrderItem> orderItemData = new();
+
+    protected override void OnInitialized()
+    {
+        Elements = OrderItemServices.GetOrderListFromJsonFile();
+        Data = OrderService.GetOrdersFromJsonFile();
+        orderItemData = OrderItemServices.GetOrderListFromJsonFile();
+        if (_globalState.CurrentUser == null)
+        {
+            NavManager.NavigateTo("/login");
+        }
+
+        base.OnInitialized();
+    }
+    public void downloadPdf()
+    {
+        //Data have order
+        //orderItemData have orderItem
+
+        Dictionary<string, List<ProductSalesQuantity>> orderItems = ReportService.getOrderItems(orderItemData,timeFrame);
+        List<Order> ListData = ReportService.getOrderList(Data, timeFrame);
+
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        InvoiceDocumentService document = new InvoiceDocumentService(orderItems["add-ins"], orderItems["coffees"], ListData, timeFrame);
+        if (timeFrame.Equals("Monthly"))
+        {
+            string filePath = Path.Combine(AppUtils.GetDesktopDirectoryPath(), "MonthSalesReport.PDF");
+            document.GeneratePdf(filePath);
+            bar.Add("Monthly Sales Downloaded!", Severity.Success);
+        }
+        else
+        {
+            string filePath = Path.Combine(AppUtils.GetDesktopDirectoryPath(), "DaySalesReport.PDF");
+            document.GeneratePdf(filePath);
+            bar.Add("Daily Sales Downloaded!", Severity.Success);
+        }
+    }
+    public void month()
+    {
+        timeFrame = "Monthly";
+        downloadPdf();
+    }
+    public void day()
+    {
+        timeFrame = "Daily";
+        downloadPdf();
+    }
+}

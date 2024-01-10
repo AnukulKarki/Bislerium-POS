@@ -1,0 +1,14 @@
+﻿@page "/logout"
+@inject NavigationManager NavManager
+
+@code {
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _globalState.CurrentUser = null;
+        _globalState.OrderItems.Clear();
+        NavManager.NavigateTo("/login");
+    }
+}
